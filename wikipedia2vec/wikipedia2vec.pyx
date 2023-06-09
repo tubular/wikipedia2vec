@@ -316,15 +316,15 @@ cdef class Wikipedia2Vec:
         else:
             syn0_mmap = mmap.mmap(-1, dim_size * vocab_size * ctypes.sizeof(c_float))
             syn1_mmap = mmap.mmap(-1, dim_size * vocab_size * ctypes.sizeof(c_float))
-            self.syn0 = np.frombuffer(syn0_mmap, dtype=np.float32).reshape(vocab_size, dim_size)
-            self.syn1 = np.frombuffer(syn1_mmap, dtype=np.float32).reshape(vocab_size, dim_size)
-            syn0_carr = self.syn0
-            syn1_carr = self.syn1
+            syn0_temp = np.frombuffer(syn0_mmap, dtype=np.float32).reshape(vocab_size, dim_size)
+            syn1_temp = np.frombuffer(syn1_mmap, dtype=np.float32).reshape(vocab_size, dim_size)
+            syn0_carr = syn0_temp
+            syn1_carr = syn1_temp
             syn0_addr = <uintptr_t>&syn0_carr[0, 0]
             syn1_addr = <uintptr_t>&syn1_carr[0, 0]
 
-        self.syn0[:] = (np.random.rand(vocab_size, dim_size) - 0.5) / dim_size
-        self.syn1[:] = np.zeros((vocab_size, dim_size))
+        syn0_temp[:] = (np.random.rand(vocab_size, dim_size) - 0.5) / dim_size
+        syn1_temp[:] = np.zeros((vocab_size, dim_size))
 
         init_args = (
             dump_db,
@@ -361,9 +361,16 @@ cdef class Wikipedia2Vec:
 
             logger.info('Terminating pool workers...')
 
-        self.syn0 = self.syn0.copy()
+        self.syn0 = syn0_temp.copy()
+        del syn0_carr
+        del syn0_addr
+        del syn0_temp
         syn0_mmap.close()
-        self.syn1 = self.syn1.copy()
+
+        self.syn1 = syn1_temp.copy()
+        del syn1_carr
+        del syn1_addr
+        del syn1_temp
         syn1_mmap.close()
 
         train_params = dict(
